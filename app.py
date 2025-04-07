@@ -1,33 +1,27 @@
 from flask import Flask
-from flask_cors import CORS  # Importar CORS
-from routes import auth, products, reports, barcode, suppliers, inventory, sales
-from utils.logging import setup_logging
-from utils.auth import init_jwt
-from models.database import init_db
+from flask_migrate import Migrate
+from extensions import db, init_extensions  # Importa 'db' e 'init_extensions'
+from routes import suppliers_bp, inventory_bp, sales_bp, auth_bp
 
 app = Flask(__name__)
-app.config.from_object('config.Config')
+app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///inventory.db"
+app.config["JWT_SECRET_KEY"] = "clave_secreta"
 
-# Inicializar JWT
-jwt = init_jwt(app)
+# Inicializa extensiones (BD, JWT, etc.)
+init_extensions(app)
 
-# Registrar rutas
-app.register_blueprint(auth.bp, url_prefix='/api/auth')
-app.register_blueprint(products.bp, url_prefix='/api/products')
-app.register_blueprint(reports.bp, url_prefix='/api/reports')
-app.register_blueprint(barcode.bp, url_prefix='/api/barcode')
-app.register_blueprint(suppliers.bp, url_prefix='/api/suppliers')
-app.register_blueprint(inventory.bp, url_prefix='/api/inventory')
-app.register_blueprint(sales.bp, url_prefix='/api/sales')
+# Configura Flask-Migrate
+migrate = Migrate(app, db)
 
-# Configurar CORS
-CORS(app, resources={r"/api/*": {"origins": "*"}})
+# Registra blueprints
+app.register_blueprint(suppliers_bp, url_prefix="/api")
+app.register_blueprint(inventory_bp, url_prefix="/api")
+app.register_blueprint(sales_bp, url_prefix="/api")
+app.register_blueprint(auth_bp, url_prefix="/api")
 
-# Configurar logging
-setup_logging(app)
+@app.route("/")
+def home():
+    return "¡API funcionando! 🚀"
 
-# Inicializar la base de datos
-init_db(app.config['MYSQL_URI'])
-
-if __name__ == '__main__':
-    app.run(debug=app.config['DEBUG'])
+if __name__ == "__main__":
+    app.run(debug=True)

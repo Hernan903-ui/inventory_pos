@@ -1,47 +1,20 @@
-from datetime import datetime
-from werkzeug.security import generate_password_hash, check_password_hash
-from sqlalchemy import Column, Integer, String, DateTime, Enum, ForeignKey
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship
-from sqlalchemy import Column, Integer, String, Numeric, DateTime, ForeignKey
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship
+# backend/models.py
+from extensions import db
+from extensions import jwt
 
-Base = declarative_base()
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    password = db.Column(db.String(200))
 
-class User(Base):
-    __tablename__ = 'users'
-    
-    id = Column(Integer, primary_key=True)
-    username = Column(String(50), nullable=False)
-    email = Column(String(100), nullable=False, unique=True)
-    password = Column(String(255), nullable=False)
-    business_name = Column(String(100), nullable=False, unique=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    role = Column(Enum('admin', 'employee'), default='employee')
-    
-    # Relaciones
-    products = relationship('Product', back_populates='business')
-    suppliers = relationship('Supplier', back_populates='business')
-    inventory_history = relationship('Inventory', back_populates='business')
-    sales = relationship('Sale', back_populates='business')
-    
-    def __init__(self, username, email, password, business_name, role='employee'):
-        self.username = username
-        self.email = email
-        self.password = generate_password_hash(password)
-        self.business_name = business_name
-        self.role = role
-    
-    def verify_password(self, password):
-        return check_password_hash(self.password, password)
-    
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'username': self.username,
-            'email': self.email,
-            'business_name': self.business_name,
-            'created_at': self.created_at.isoformat(),
-            'role': self.role
-        }
+# En extensions.py agrega:
+from flask_jwt_extended import JWTManager
+
+@jwt.user_identity_loader
+def user_identity_lookup(user):
+    return user.id
+
+@jwt.user_lookup_loader
+def user_lookup_callback(_jwt_header, jwt_data):
+    identity = jwt_data["sub"]
+    return User.query.get(identity)

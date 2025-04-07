@@ -1,46 +1,32 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
+from extensions import db
 from models.user import User
-import logging
-from utils.logging import log_request
+from werkzeug.security import generate_password_hash, check_password_hash
 
-bp = Blueprint('auth', __name__)
+auth_bp = Blueprint('auth', __name__)
 
-@bp.route('/login', methods=['POST'])
-@log_request
-def login():
-    data = request.get_json()
-    email = data.get('email')
-    password = data.get('password')
-    
-    user = User.query.filter_by(email=email).first()
-    
-    if user and user.verify_password(password):
-        access_token = create_access_token(identity={
-            'id': user.id,
-            'business_id': user.id
-        })
-        return jsonify(access_token=access_token)
-    
-    return jsonify({"msg": "Credenciales incorrectas"}), 401
-
-@bp.route('/register', methods=['POST'])
-@log_request
+@auth_bp.route('/register', methods=['POST'])
 def register():
     data = request.get_json()
-    username = data.get('username')
-    email = data.get('email')
-    password = data.get('password')
-    business_name = data.get('business_name')
+    if User.query.filter_by(email=data['email']).first():
+        return jsonify({"error": "El usuario ya existe"}), 409
     
-    if User.query.filter_by(business_name=business_name).first():
-        return jsonify({"msg": "Nombre de negocio ya existe"}), 409
+    new_user = User(
+        email=data['email'],
+        password=generate_password_hash(data['password']),
+        role='user'
+    )
+    db.session.add(new_user)
+    db.session.commit()
+    return jsonify(new_user.to_dict()), 201
+
+@auth_bp.route('/login', methods=['POST'])
+def login():
+    data = request.get_json()
+    user = User.query.filter_by(email=data['email']).first()
+    if not user or not check_password_hash(user.password, data['password']):
+        return jsonify({"error": "Credenciales inválidas"}), 401
     
-    hashed_password = User.hash_password(password)
-    new_user = User(username, email, hashed_password, business_name)
-    
-    try:
-        new_user.save()
-        return jsonify({"msg": "Usuario registrado exitosamente"}), 201
-    except Exception as e:
-        return jsonify({"msg": "Error al registrar usuario", "error": str(e)}), 500
+    access_token = create_access_token(identity=user.id)
+    return jsonify(access_token=access_token), 200

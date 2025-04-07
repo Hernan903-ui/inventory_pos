@@ -1,24 +1,10 @@
-import logging
-from logging.handlers import RotatingFileHandler
-import os
+from functools import wraps
+from flask import request
 
-def setup_logging(app):
-    if not os.path.exists('logs'):
-        os.makedirs('logs')
-    
-    handler = RotatingFileHandler('logs/app.log', maxBytes=10000, backupCount=3)
-    handler.setLevel(logging.INFO)
-    
-    formatter = logging.Formatter(
-        '[%(asctime)s] %(levelname)s in %(module)s: %(message)s'
-    )
-    handler.setFormatter(formatter)
-    
-    app.logger.addHandler(handler)
-    app.logger.setLevel(logging.INFO)
-    
-    # Configurar logs para SQLAlchemy
-    logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
-    logging.getLogger('sqlalchemy.engine').addHandler(handler)
-    
-    return app.logger
+def log_request(func):
+    """Decorador para registrar solicitudes HTTP."""
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        print(f"[LOG] {request.method} {request.url} - IP: {request.remote_addr}")
+        return func(*args, **kwargs)
+    return wrapper
