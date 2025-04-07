@@ -1,0 +1,10 @@
+Flask
+Flask-SQLAlchemy
+Flask-JWT-Extended
+python-dotenv
+reportlab
+PyMySQL
+PyQRCode
+python-barcode
+pyzbar
+opencv-python
